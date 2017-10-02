@@ -22,13 +22,19 @@ import android.support.v7.app.NotificationCompat;
 
 import com.google.android.exoplayer2.DefaultLoadControl;
 import com.google.android.exoplayer2.DefaultRenderersFactory;
+import com.google.android.exoplayer2.ExoPlaybackException;
+import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.ExoPlayerFactory;
+import com.google.android.exoplayer2.PlaybackParameters;
 import com.google.android.exoplayer2.SimpleExoPlayer;
+import com.google.android.exoplayer2.Timeline;
 import com.google.android.exoplayer2.ext.okhttp.OkHttpDataSourceFactory;
 import com.google.android.exoplayer2.extractor.DefaultExtractorsFactory;
 import com.google.android.exoplayer2.extractor.ExtractorsFactory;
 import com.google.android.exoplayer2.source.ExtractorMediaSource;
+import com.google.android.exoplayer2.source.TrackGroupArray;
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
+import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.cache.Cache;
 import com.google.android.exoplayer2.upstream.cache.CacheDataSource;
@@ -87,7 +93,8 @@ final public class PlayerService extends Service {
         mediaSession.setMediaButtonReceiver(PendingIntent.getBroadcast(appContext, 0, mediaButtonIntent, 0));
 
         exoPlayer = ExoPlayerFactory.newSimpleInstance(new DefaultRenderersFactory(this), new DefaultTrackSelector(), new DefaultLoadControl());
-        DataSource.Factory httpDataSourceFactory = new OkHttpDataSourceFactory(new OkHttpClient(), Util.getUserAgent(this, "AndroidAudioExample"), null);
+        exoPlayer.addListener(exoPlayerListener);
+        DataSource.Factory httpDataSourceFactory = new OkHttpDataSourceFactory(new OkHttpClient(), Util.getUserAgent(this, getString(R.string.app_name)), null);
         Cache cache = new SimpleCache(new File(this.getCacheDir().getAbsolutePath() + "/exoplayer"), new LeastRecentlyUsedCacheEvictor(1024 * 1024 * 100)); // 100 Mb max
         this.dataSourceFactory = new CacheDataSourceFactory(cache, httpDataSourceFactory, CacheDataSource.FLAG_BLOCK_ON_CACHE | CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR);
         this.extractorsFactory = new DefaultExtractorsFactory();
@@ -109,6 +116,7 @@ final public class PlayerService extends Service {
     private MediaSessionCompat.Callback mediaSessionCallback = new MediaSessionCompat.Callback() {
 
         private Uri currentUri;
+        int currentState = PlaybackStateCompat.STATE_STOPPED;
 
         @Override
         public void onPlay() {
@@ -116,11 +124,7 @@ final public class PlayerService extends Service {
                 MusicRepository.Track track = musicRepository.getCurrent();
                 updateMetadataFromTrack(track);
 
-                if (!track.getUri().equals(currentUri)) {
-                    currentUri = track.getUri();
-                    ExtractorMediaSource mediaSource = new ExtractorMediaSource(currentUri, dataSourceFactory, extractorsFactory, null, null);
-                    exoPlayer.prepare(mediaSource);
-                }
+                prepareToPlay(track.getUri());
 
                 int audioFocusResult = audioManager.requestAudioFocus(audioFocusChangeListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
                 if (audioFocusResult != AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
@@ -128,7 +132,8 @@ final public class PlayerService extends Service {
 
                 mediaSession.setActive(true); // Сразу после получения фокуса
                 mediaSession.setPlaybackState(stateBuilder.setState(PlaybackStateCompat.STATE_PLAYING, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1).build());
-                showPlayingNotification();
+                currentState = PlaybackStateCompat.STATE_PLAYING;
+                refreshNotification();
 
                 registerReceiver(becomingNoisyReceiver, new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY));
 
@@ -140,23 +145,28 @@ final public class PlayerService extends Service {
         public void onPause() {
             if (exoPlayer.getPlayWhenReady()) {
                 exoPlayer.setPlayWhenReady(false);
+
                 mediaSession.setPlaybackState(stateBuilder.setState(PlaybackStateCompat.STATE_PAUSED, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1).build());
-                showPausedNotification();
+                currentState = PlaybackStateCompat.STATE_PAUSED;
+
+                refreshNotification();
+
                 unregisterReceiver(becomingNoisyReceiver);
             }
         }
 
         @Override
         public void onStop() {
-            if (exoPlayer.getPlayWhenReady()) {
-                exoPlayer.setPlayWhenReady(false);
+            exoPlayer.setPlayWhenReady(false);
 
-                audioManager.abandonAudioFocus(audioFocusChangeListener);
-                hideNotification();
+            audioManager.abandonAudioFocus(audioFocusChangeListener);
 
-                mediaSession.setActive(false);
-                mediaSession.setPlaybackState(stateBuilder.setState(PlaybackStateCompat.STATE_STOPPED, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1).build());
-            }
+            mediaSession.setActive(false);
+
+            mediaSession.setPlaybackState(stateBuilder.setState(PlaybackStateCompat.STATE_STOPPED, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1).build());
+            currentState = PlaybackStateCompat.STATE_STOPPED;
+
+            refreshNotification();
         }
 
         @Override
@@ -164,9 +174,9 @@ final public class PlayerService extends Service {
             MusicRepository.Track track = musicRepository.getNext();
             updateMetadataFromTrack(track);
 
-            currentUri = track.getUri();
-            ExtractorMediaSource mediaSource = new ExtractorMediaSource(currentUri, dataSourceFactory, extractorsFactory, null, null);
-            exoPlayer.prepare(mediaSource);
+            refreshNotification();
+
+            prepareToPlay(track.getUri());
         }
 
         @Override
@@ -174,9 +184,17 @@ final public class PlayerService extends Service {
             MusicRepository.Track track = musicRepository.getPrevious();
             updateMetadataFromTrack(track);
 
-            currentUri = track.getUri();
-            ExtractorMediaSource mediaSource = new ExtractorMediaSource(currentUri, dataSourceFactory, extractorsFactory, null, null);
-            exoPlayer.prepare(mediaSource);
+            refreshNotification();
+
+            prepareToPlay(track.getUri());
+        }
+
+        private void prepareToPlay(Uri uri) {
+            if (!uri.equals(currentUri)) {
+                currentUri = uri;
+                ExtractorMediaSource mediaSource = new ExtractorMediaSource(uri, dataSourceFactory, extractorsFactory, null, null);
+                exoPlayer.prepare(mediaSource);
+            }
         }
 
         private void updateMetadataFromTrack(MusicRepository.Track track) {
@@ -184,7 +202,17 @@ final public class PlayerService extends Service {
             metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_TITLE, track.getTitle());
             metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ALBUM, track.getArtist());
             metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, track.getArtist());
+            metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, track.getDuration());
             mediaSession.setMetadata(metadataBuilder.build());
+        }
+
+        private void refreshNotification() {
+            if (currentState == PlaybackStateCompat.STATE_PLAYING)
+                showPlayingNotification();
+            else if (currentState == PlaybackStateCompat.STATE_PAUSED)
+                showPausedNotification();
+            else
+                hideNotification();
         }
     };
 
@@ -215,6 +243,39 @@ final public class PlayerService extends Service {
         }
     };
 
+    private ExoPlayer.EventListener exoPlayerListener = new ExoPlayer.EventListener() {
+        @Override
+        public void onTimelineChanged(Timeline timeline, Object manifest) {
+        }
+
+        @Override
+        public void onTracksChanged(TrackGroupArray trackGroups, TrackSelectionArray trackSelections) {
+        }
+
+        @Override
+        public void onLoadingChanged(boolean isLoading) {
+        }
+
+        @Override
+        public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
+            if (playWhenReady && playbackState == ExoPlayer.STATE_ENDED) {
+                mediaSessionCallback.onSkipToNext();
+            }
+        }
+
+        @Override
+        public void onPlayerError(ExoPlaybackException error) {
+        }
+
+        @Override
+        public void onPositionDiscontinuity() {
+        }
+
+        @Override
+        public void onPlaybackParametersChanged(PlaybackParameters playbackParameters) {
+        }
+    };
+
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
@@ -229,9 +290,9 @@ final public class PlayerService extends Service {
 
     private void showPlayingNotification() {
         NotificationCompat.Builder builder = MediaStyleHelper.from(this, mediaSession);
-        builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_previous, "Previous", MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS)));
-        builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_pause, "Pause", MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_PLAY_PAUSE)));
-        builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_previous, "Next", MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_NEXT)));
+        builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_previous, getString(R.string.previous), MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS)));
+        builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_pause, getString(R.string.pause), MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_PLAY_PAUSE)));
+        builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_previous, getString(R.string.next), MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_NEXT)));
         builder.setStyle(new NotificationCompat.MediaStyle()
                 .setShowActionsInCompactView(1)
                 .setShowCancelButton(true)
@@ -245,9 +306,9 @@ final public class PlayerService extends Service {
 
     private void showPausedNotification() {
         NotificationCompat.Builder builder = MediaStyleHelper.from(this, mediaSession);
-        builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_previous, "Previous", MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS)));
-        builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_play, "Play", MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_PLAY_PAUSE)));
-        builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_previous, "Next", MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_NEXT)));
+        builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_previous, getString(R.string.previous), MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS)));
+        builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_play, getString(R.string.play), MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_PLAY_PAUSE)));
+        builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_previous, getString(R.string.next), MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_NEXT)));
         builder.setStyle(new NotificationCompat.MediaStyle()
                 .setShowActionsInCompactView(1)
                 .setShowCancelButton(true)
@@ -256,12 +317,11 @@ final public class PlayerService extends Service {
         builder.setSmallIcon(R.mipmap.ic_launcher);
         builder.setColor(ContextCompat.getColor(this, R.color.colorPrimaryDark));
 
-        stopForeground(false);
         NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, builder.build());
+        stopForeground(false);
     }
 
     private void hideNotification() {
-        stopForeground(false);
-        NotificationManagerCompat.from(this).cancel(NOTIFICATION_ID);
+        stopForeground(true);
     }
 }

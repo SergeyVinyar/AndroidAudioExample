@@ -11,18 +11,21 @@
         android:id="@+id/play"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="play"/>
+        android:padding="@dimen/button_padding"
+        android:text="@string/play"/>
 
     <Button
         android:id="@+id/pause"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="pause"/>
+        android:padding="@dimen/button_padding"
+        android:text="@string/pause"/>
 
     <Button
         android:id="@+id/stop"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="stop"/>
+        android:padding="@dimen/button_padding"
+        android:text="@string/stop"/>
 
 </LinearLayout>
