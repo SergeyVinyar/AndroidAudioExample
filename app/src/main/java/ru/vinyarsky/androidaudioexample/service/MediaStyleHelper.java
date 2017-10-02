@@ -1,4 +1,4 @@
-package ru.vinyarsky.androidaudioexample;
+package ru.vinyarsky.androidaudioexample.service;
 
 // https://gist.github.com/ianhanniballake/47617ec3488e0257325c
 

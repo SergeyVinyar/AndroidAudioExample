@@ -3,7 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="ru.vinyarsky.androidaudioexample">
 
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="true"
@@ -14,7 +14,7 @@
         android:theme="@style/Theme.AppCompat.Light.DarkActionBar" >
 
         <service
-            android:name=".PlayerService"
+            android:name=".service.PlayerService"
             android:exported="true"
             tools:ignore="ExportedService" >
             <intent-filter>
@@ -30,7 +30,7 @@
         </receiver>
 
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.MainActivity"
             android:label="@string/title_activity_main" >
 
             <intent-filter>
