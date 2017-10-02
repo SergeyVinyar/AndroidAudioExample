@@ -84,7 +84,7 @@ final public class PlayerService extends Service {
         mediaSession.setSessionActivity(PendingIntent.getActivity(appContext, 0, activityIntent, 0));
 
         Intent mediaButtonIntent = new Intent(Intent.ACTION_MEDIA_BUTTON, null, appContext, MediaButtonReceiver.class);
-        mediaSession.setMediaButtonReceiver(PendingIntent.getBroadcast(this, 0, mediaButtonIntent, 0));
+        mediaSession.setMediaButtonReceiver(PendingIntent.getBroadcast(appContext, 0, mediaButtonIntent, 0));
 
         exoPlayer = ExoPlayerFactory.newSimpleInstance(new DefaultRenderersFactory(this), new DefaultTrackSelector(), new DefaultLoadControl());
         DataSource.Factory httpDataSourceFactory = new OkHttpDataSourceFactory(new OkHttpClient(), Util.getUserAgent(this, "AndroidAudioExample"), null);
@@ -195,7 +195,7 @@ final public class PlayerService extends Service {
                 case AudioManager.AUDIOFOCUS_GAIN:
                     mediaSessionCallback.onPlay(); // Не очень красиво
                     break;
-                case AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK:
+                case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
                     mediaSessionCallback.onPause();
                     break;
                 default:
