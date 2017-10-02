@@ -14,7 +14,7 @@ import android.support.v7.app.NotificationCompat;
 /**
  * Helper APIs for constructing MediaStyle notifications
  */
-public class MediaStyleHelper {
+class MediaStyleHelper {
     /**
      * Build a notification using the information from the given media session. Makes heavy use
      * of {@link MediaMetadataCompat#getDescription()} to extract the appropriate information.
@@ -23,7 +23,7 @@ public class MediaStyleHelper {
      * @param mediaSession Media session to get information.
      * @return A pre-built notification with information from the given media session.
      */
-    public static NotificationCompat.Builder from(
+    static NotificationCompat.Builder from(
             Context context, MediaSessionCompat mediaSession) {
         MediaControllerCompat controller = mediaSession.getController();
         MediaMetadataCompat mediaMetadata = controller.getMetadata();

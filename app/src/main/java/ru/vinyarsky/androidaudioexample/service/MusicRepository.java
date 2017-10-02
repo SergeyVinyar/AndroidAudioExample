@@ -4,7 +4,7 @@ import android.net.Uri;
 
 import ru.vinyarsky.androidaudioexample.R;
 
-public final class MusicRepository {
+final class MusicRepository {
 
     private final Track[] data = {
             new Track("Triangle", "Jason Shaw", R.drawable.image266680, Uri.parse("https://freepd.com/Ballad/Triangle.mp3")),
@@ -17,7 +17,7 @@ public final class MusicRepository {
     private final int maxIndex = data.length - 1;
     private int currentItemIndex = 0;
 
-    public Track getNext() {
+    Track getNext() {
         if (currentItemIndex == maxIndex)
             currentItemIndex = 0;
         else
@@ -25,7 +25,7 @@ public final class MusicRepository {
         return getCurrent();
     }
 
-    public Track getPrevious() {
+    Track getPrevious() {
         if (currentItemIndex == 0)
             currentItemIndex = maxIndex;
         else
@@ -33,45 +33,37 @@ public final class MusicRepository {
         return getCurrent();
     }
 
-    public Track getCurrent() {
+    Track getCurrent() {
         return data[currentItemIndex];
     }
 
-    public int getTrackCount() {
-        return maxIndex + 1;
-    }
-
-    public int getCurrentTrackNumber() {
-        return currentItemIndex + 1;
-    }
-
-    public static class Track {
+    static class Track {
 
         private String title;
-        private String subtitle;
+        private String artist;
         private int bitmapResId;
         private Uri uri;
 
-        public Track(String title, String subtitle, int bitmapResId, Uri uri) {
+        Track(String title, String artist, int bitmapResId, Uri uri) {
             this.title = title;
-            this.subtitle = subtitle;
+            this.artist = artist;
             this.bitmapResId = bitmapResId;
             this.uri = uri;
         }
 
-        public String getTitle() {
+        String getTitle() {
             return title;
         }
 
-        public String getSubtitle() {
-            return subtitle;
+        String getArtist() {
+            return artist;
         }
 
-        public int getBitmapResId() {
+        int getBitmapResId() {
             return bitmapResId;
         }
 
-        public Uri getUri() {
+        Uri getUri() {
             return uri;
         }
     }

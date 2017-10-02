@@ -45,6 +45,8 @@ import ru.vinyarsky.androidaudioexample.R;
 
 final public class PlayerService extends Service {
 
+    private final int NOTIFICATION_ID = 1;
+
     private final MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
 
     private final PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder().setActions(
@@ -178,16 +180,10 @@ final public class PlayerService extends Service {
         }
 
         private void updateMetadataFromTrack(MusicRepository.Track track) {
-            //Notification icon in card
-            metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, BitmapFactory.decodeResource(getResources(), track.getBitmapResId()));
-            metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, BitmapFactory.decodeResource(getResources(), track.getBitmapResId()));
-
-            //lock screen icon for pre lollipop
             metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, BitmapFactory.decodeResource(getResources(), track.getBitmapResId()));
-            metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, track.getTitle());
-            metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, track.getSubtitle());
-            metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_TRACK_NUMBER, musicRepository.getCurrentTrackNumber());
-            metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_NUM_TRACKS, musicRepository.getTrackCount());
+            metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_TITLE, track.getTitle());
+            metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ALBUM, track.getArtist());
+            metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, track.getArtist());
             mediaSession.setMetadata(metadataBuilder.build());
         }
     };
@@ -233,34 +229,39 @@ final public class PlayerService extends Service {
 
     private void showPlayingNotification() {
         NotificationCompat.Builder builder = MediaStyleHelper.from(this, mediaSession);
+        builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_previous, "Previous", MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS)));
         builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_pause, "Pause", MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_PLAY_PAUSE)));
+        builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_previous, "Next", MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_NEXT)));
         builder.setStyle(new NotificationCompat.MediaStyle()
-                .setShowActionsInCompactView(0)
+                .setShowActionsInCompactView(1)
                 .setShowCancelButton(true)
                 .setCancelButtonIntent(MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_STOP))
                 .setMediaSession(mediaSession.getSessionToken())); // setMediaSession требуется для Android Wear
         builder.setSmallIcon(R.mipmap.ic_launcher);
         builder.setColor(ContextCompat.getColor(this, R.color.colorPrimaryDark)); // The whole background (in MediaStyle), not just icon background
 
-        startForeground(1, builder.build());
+        startForeground(NOTIFICATION_ID, builder.build());
     }
 
     private void showPausedNotification() {
         NotificationCompat.Builder builder = MediaStyleHelper.from(this, mediaSession);
+        builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_previous, "Previous", MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS)));
         builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_play, "Play", MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_PLAY_PAUSE)));
+        builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_previous, "Next", MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_NEXT)));
         builder.setStyle(new NotificationCompat.MediaStyle()
-                .setShowActionsInCompactView(0)
+                .setShowActionsInCompactView(1)
                 .setShowCancelButton(true)
                 .setCancelButtonIntent(MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_STOP))
                 .setMediaSession(mediaSession.getSessionToken()));
         builder.setSmallIcon(R.mipmap.ic_launcher);
         builder.setColor(ContextCompat.getColor(this, R.color.colorPrimaryDark));
 
-        NotificationManagerCompat.from(this).notify(1, builder.build());
         stopForeground(false);
+        NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, builder.build());
     }
 
     private void hideNotification() {
-        stopForeground(true);
+        stopForeground(false);
+        NotificationManagerCompat.from(this).cancel(NOTIFICATION_ID);
     }
 }
