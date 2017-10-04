@@ -93,8 +93,6 @@ final public class PlayerService extends MediaBrowserServiceCompat {
         mediaSession = new MediaSessionCompat(this, "PlayerService");
         mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
         mediaSession.setCallback(mediaSessionCallback);
-        //mediaSession.setPlaybackState(stateBuilder.build());
-        //mediaSession.setMetadata(metadataBuilder.build());
 
         setSessionToken(mediaSession.getSessionToken());
 
