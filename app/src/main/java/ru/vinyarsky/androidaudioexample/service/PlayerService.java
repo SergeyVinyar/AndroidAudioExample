@@ -122,6 +122,8 @@ final public class PlayerService extends Service {
         @Override
         public void onPlay() {
             if (!exoPlayer.getPlayWhenReady()) {
+                startService(new Intent(getApplicationContext(), PlayerService.class));
+
                 MusicRepository.Track track = musicRepository.getCurrent();
                 updateMetadataFromTrack(track);
 
@@ -168,6 +170,8 @@ final public class PlayerService extends Service {
             currentState = PlaybackStateCompat.STATE_STOPPED;
 
             refreshNotificationAndForegroundStatus(currentState);
+
+            stopSelf();
         }
 
         @Override
@@ -317,6 +321,7 @@ final public class PlayerService extends Service {
         builder.setColor(ContextCompat.getColor(this, R.color.colorPrimaryDark)); // The whole background (in MediaStyle), not just icon background
         builder.setShowWhen(false);
         builder.setPriority(NotificationCompat.PRIORITY_HIGH);
+        builder.setOnlyAlertOnce(true);
 
         return builder.build();
     }
