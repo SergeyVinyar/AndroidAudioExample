@@ -1,3 +1,3 @@
 <resources>
-    <dimen name="button_padding">6dp</dimen>
+    <dimen name="button_padding">16dp</dimen>
 </resources>

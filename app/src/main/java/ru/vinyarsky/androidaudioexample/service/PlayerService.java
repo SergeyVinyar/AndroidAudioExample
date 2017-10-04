@@ -1,5 +1,6 @@
 package ru.vinyarsky.androidaudioexample.service;
 
+import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
@@ -51,7 +52,7 @@ import ru.vinyarsky.androidaudioexample.R;
 
 final public class PlayerService extends Service {
 
-    private final int NOTIFICATION_ID = 1;
+    private final int NOTIFICATION_ID = 404;
 
     private final MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
 
@@ -133,7 +134,7 @@ final public class PlayerService extends Service {
                 mediaSession.setActive(true); // Сразу после получения фокуса
                 mediaSession.setPlaybackState(stateBuilder.setState(PlaybackStateCompat.STATE_PLAYING, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1).build());
                 currentState = PlaybackStateCompat.STATE_PLAYING;
-                refreshNotification();
+                refreshNotificationAndForegroundStatus(currentState);
 
                 registerReceiver(becomingNoisyReceiver, new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY));
 
@@ -149,7 +150,7 @@ final public class PlayerService extends Service {
                 mediaSession.setPlaybackState(stateBuilder.setState(PlaybackStateCompat.STATE_PAUSED, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1).build());
                 currentState = PlaybackStateCompat.STATE_PAUSED;
 
-                refreshNotification();
+                refreshNotificationAndForegroundStatus(currentState);
 
                 unregisterReceiver(becomingNoisyReceiver);
             }
@@ -166,7 +167,7 @@ final public class PlayerService extends Service {
             mediaSession.setPlaybackState(stateBuilder.setState(PlaybackStateCompat.STATE_STOPPED, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1).build());
             currentState = PlaybackStateCompat.STATE_STOPPED;
 
-            refreshNotification();
+            refreshNotificationAndForegroundStatus(currentState);
         }
 
         @Override
@@ -174,7 +175,7 @@ final public class PlayerService extends Service {
             MusicRepository.Track track = musicRepository.getNext();
             updateMetadataFromTrack(track);
 
-            refreshNotification();
+            refreshNotificationAndForegroundStatus(currentState);
 
             prepareToPlay(track.getUri());
         }
@@ -184,7 +185,7 @@ final public class PlayerService extends Service {
             MusicRepository.Track track = musicRepository.getPrevious();
             updateMetadataFromTrack(track);
 
-            refreshNotification();
+            refreshNotificationAndForegroundStatus(currentState);
 
             prepareToPlay(track.getUri());
         }
@@ -204,15 +205,6 @@ final public class PlayerService extends Service {
             metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, track.getArtist());
             metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, track.getDuration());
             mediaSession.setMetadata(metadataBuilder.build());
-        }
-
-        private void refreshNotification() {
-            if (currentState == PlaybackStateCompat.STATE_PLAYING)
-                showPlayingNotification();
-            else if (currentState == PlaybackStateCompat.STATE_PAUSED)
-                showPausedNotification();
-            else
-                hideNotification();
         }
     };
 
@@ -288,11 +280,34 @@ final public class PlayerService extends Service {
         }
     }
 
-    private void showPlayingNotification() {
+    private void refreshNotificationAndForegroundStatus(int playbackState) {
+        switch (playbackState) {
+            case PlaybackStateCompat.STATE_PLAYING: {
+                startForeground(NOTIFICATION_ID, getNotification(playbackState));
+                break;
+            }
+            case PlaybackStateCompat.STATE_PAUSED: {
+                NotificationManagerCompat.from(PlayerService.this).notify(NOTIFICATION_ID, getNotification(playbackState));
+                stopForeground(false);
+                break;
+            }
+            default: {
+                stopForeground(true);
+                break;
+            }
+        }
+    }
+
+    private Notification getNotification(int playbackState) {
         NotificationCompat.Builder builder = MediaStyleHelper.from(this, mediaSession);
         builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_previous, getString(R.string.previous), MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS)));
-        builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_pause, getString(R.string.pause), MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_PLAY_PAUSE)));
-        builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_previous, getString(R.string.next), MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_NEXT)));
+
+        if (playbackState == PlaybackStateCompat.STATE_PLAYING)
+            builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_pause, getString(R.string.pause), MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_PLAY_PAUSE)));
+        else
+            builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_play, getString(R.string.play), MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_PLAY_PAUSE)));
+
+        builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_next, getString(R.string.next), MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_NEXT)));
         builder.setStyle(new NotificationCompat.MediaStyle()
                 .setShowActionsInCompactView(1)
                 .setShowCancelButton(true)
@@ -300,28 +315,9 @@ final public class PlayerService extends Service {
                 .setMediaSession(mediaSession.getSessionToken())); // setMediaSession требуется для Android Wear
         builder.setSmallIcon(R.mipmap.ic_launcher);
         builder.setColor(ContextCompat.getColor(this, R.color.colorPrimaryDark)); // The whole background (in MediaStyle), not just icon background
+        builder.setShowWhen(false);
+        builder.setPriority(NotificationCompat.PRIORITY_HIGH);
 
-        startForeground(NOTIFICATION_ID, builder.build());
-    }
-
-    private void showPausedNotification() {
-        NotificationCompat.Builder builder = MediaStyleHelper.from(this, mediaSession);
-        builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_previous, getString(R.string.previous), MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS)));
-        builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_play, getString(R.string.play), MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_PLAY_PAUSE)));
-        builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_previous, getString(R.string.next), MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_NEXT)));
-        builder.setStyle(new NotificationCompat.MediaStyle()
-                .setShowActionsInCompactView(1)
-                .setShowCancelButton(true)
-                .setCancelButtonIntent(MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_STOP))
-                .setMediaSession(mediaSession.getSessionToken()));
-        builder.setSmallIcon(R.mipmap.ic_launcher);
-        builder.setColor(ContextCompat.getColor(this, R.color.colorPrimaryDark));
-
-        NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, builder.build());
-        stopForeground(false);
-    }
-
-    private void hideNotification() {
-        stopForeground(true);
+        return builder.build();
     }
 }
