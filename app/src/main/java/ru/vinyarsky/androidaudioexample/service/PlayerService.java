@@ -2,8 +2,8 @@ package ru.vinyarsky.androidaudioexample.service;
 
 import android.app.Notification;
 import android.app.PendingIntent;
-import android.app.Service;
 import android.content.BroadcastReceiver;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -11,10 +11,15 @@ import android.graphics.BitmapFactory;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Binder;
+import android.os.Bundle;
 import android.os.IBinder;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.media.MediaBrowserCompat;
+import android.support.v4.media.MediaBrowserServiceCompat;
+import android.support.v4.media.MediaDescriptionCompat;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaButtonReceiver;
 import android.support.v4.media.session.MediaSessionCompat;
@@ -45,12 +50,16 @@ import com.google.android.exoplayer2.upstream.cache.SimpleCache;
 import com.google.android.exoplayer2.util.Util;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 import okhttp3.OkHttpClient;
 import ru.vinyarsky.androidaudioexample.ui.MainActivity;
 import ru.vinyarsky.androidaudioexample.R;
 
-final public class PlayerService extends Service {
+import static android.support.v4.media.MediaBrowserCompat.MediaItem.FLAG_PLAYABLE;
+
+final public class PlayerService extends MediaBrowserServiceCompat {
 
     private final int NOTIFICATION_ID = 404;
 
@@ -84,6 +93,10 @@ final public class PlayerService extends Service {
         mediaSession = new MediaSessionCompat(this, "PlayerService");
         mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
         mediaSession.setCallback(mediaSessionCallback);
+        //mediaSession.setPlaybackState(stateBuilder.build());
+        //mediaSession.setMetadata(metadataBuilder.build());
+
+        setSessionToken(mediaSession.getSessionToken());
 
         Context appContext = getApplicationContext();
 
@@ -114,19 +127,60 @@ final public class PlayerService extends Service {
         exoPlayer.release();
     }
 
+    @Nullable
+    @Override
+    public BrowserRoot onGetRoot(@NonNull String clientPackageName, int clientUid, @Nullable Bundle rootHints) {
+        return new BrowserRoot("Root", null);
+    }
+
+    @Override
+    public void onLoadChildren(@NonNull String parentId, @NonNull Result<List<MediaBrowserCompat.MediaItem>> result) {
+        ArrayList<MediaBrowserCompat.MediaItem> data = new ArrayList<>(musicRepository.getTrackCount());
+
+        MediaDescriptionCompat.Builder descriptionBuilder = new MediaDescriptionCompat.Builder();
+        for (int i = 0; i < musicRepository.getTrackCount() - 1; i++) {
+            MusicRepository.Track track = musicRepository.getTrackByIndex(i);
+            MediaDescriptionCompat description = descriptionBuilder
+                    .setDescription(track.getArtist())
+                    .setTitle(track.getTitle())
+                    .setSubtitle(track.getArtist())
+                    //.setIconBitmap(BitmapFactory.decodeResource(getResources(), track.getBitmapResId()))
+                    .setIconUri(new Uri.Builder()
+                            .scheme(ContentResolver.SCHEME_ANDROID_RESOURCE)
+                            .authority(getResources().getResourcePackageName(track.getBitmapResId()))
+                            .appendPath(getResources().getResourceTypeName(track.getBitmapResId()))
+                            .appendPath(getResources().getResourceEntryName(track.getBitmapResId()))
+                            .build())
+                    .setMediaId(Integer.toString(i))
+                    .build();
+            data.add(new MediaBrowserCompat.MediaItem(description, FLAG_PLAYABLE));
+        }
+        result.sendResult(data);
+    }
+
     private MediaSessionCompat.Callback mediaSessionCallback = new MediaSessionCompat.Callback() {
 
         private Uri currentUri;
         int currentState = PlaybackStateCompat.STATE_STOPPED;
 
         @Override
+        public void onPlayFromMediaId(String mediaId, Bundle extras) {
+            playTrack(musicRepository.getTrackByIndex(Integer.parseInt(mediaId)));
+        }
+
+        @Override
         public void onPlay() {
+            startService(new Intent(getApplicationContext(), PlayerService.class));
+
+            playTrack(musicRepository.getCurrent());
+        }
+
+        private void playTrack(MusicRepository.Track track) {
+            updateMetadataFromTrack(track);
+
+            prepareToPlay(track.getUri());
+
             if (!exoPlayer.getPlayWhenReady()) {
-                MusicRepository.Track track = musicRepository.getCurrent();
-                updateMetadataFromTrack(track);
-
-                prepareToPlay(track.getUri());
-
                 int audioFocusResult = audioManager.requestAudioFocus(audioFocusChangeListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
                 if (audioFocusResult != AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
                     return;
@@ -168,6 +222,8 @@ final public class PlayerService extends Service {
             currentState = PlaybackStateCompat.STATE_STOPPED;
 
             refreshNotificationAndForegroundStatus(currentState);
+
+            stopSelf();
         }
 
         @Override
@@ -271,6 +327,9 @@ final public class PlayerService extends Service {
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
+        if (SERVICE_INTERFACE.equals(intent.getAction())) {
+            return super.onBind(intent);
+        }
         return new PlayerServiceBinder();
     }
 
@@ -317,6 +376,7 @@ final public class PlayerService extends Service {
         builder.setColor(ContextCompat.getColor(this, R.color.colorPrimaryDark)); // The whole background (in MediaStyle), not just icon background
         builder.setShowWhen(false);
         builder.setPriority(NotificationCompat.PRIORITY_HIGH);
+        builder.setOnlyAlertOnce(true);
 
         return builder.build();
     }

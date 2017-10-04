@@ -13,11 +13,15 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.AppCompat.Light.DarkActionBar" >
 
+        <meta-data android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc"/>
+
         <service
             android:name=".service.PlayerService"
             android:exported="true"
             tools:ignore="ExportedService" >
             <intent-filter>
+                <action android:name="android.media.browse.MediaBrowserService"/>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
         </service>

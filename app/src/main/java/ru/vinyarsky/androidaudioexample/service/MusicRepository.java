@@ -37,6 +37,14 @@ final class MusicRepository {
         return data[currentItemIndex];
     }
 
+    Track getTrackByIndex(int index) {
+        return data[index];
+    }
+
+    int getTrackCount() {
+        return data.length;
+    }
+
     static class Track {
 
         private String title;
