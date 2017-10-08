@@ -134,33 +134,37 @@ final public class PlayerService extends Service {
                     return;
 
                 mediaSession.setActive(true); // Сразу после получения фокуса
-                mediaSession.setPlaybackState(stateBuilder.setState(PlaybackStateCompat.STATE_PLAYING, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1).build());
-                currentState = PlaybackStateCompat.STATE_PLAYING;
-                refreshNotificationAndForegroundStatus(currentState);
 
                 registerReceiver(becomingNoisyReceiver, new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY));
 
                 exoPlayer.setPlayWhenReady(true);
             }
+
+            mediaSession.setPlaybackState(stateBuilder.setState(PlaybackStateCompat.STATE_PLAYING, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1).build());
+            currentState = PlaybackStateCompat.STATE_PLAYING;
+
+            refreshNotificationAndForegroundStatus(currentState);
         }
 
         @Override
         public void onPause() {
             if (exoPlayer.getPlayWhenReady()) {
                 exoPlayer.setPlayWhenReady(false);
-
-                mediaSession.setPlaybackState(stateBuilder.setState(PlaybackStateCompat.STATE_PAUSED, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1).build());
-                currentState = PlaybackStateCompat.STATE_PAUSED;
-
-                refreshNotificationAndForegroundStatus(currentState);
-
                 unregisterReceiver(becomingNoisyReceiver);
             }
+
+            mediaSession.setPlaybackState(stateBuilder.setState(PlaybackStateCompat.STATE_PAUSED, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1).build());
+            currentState = PlaybackStateCompat.STATE_PAUSED;
+
+            refreshNotificationAndForegroundStatus(currentState);
         }
 
         @Override
         public void onStop() {
-            exoPlayer.setPlayWhenReady(false);
+            if (exoPlayer.getPlayWhenReady()) {
+                exoPlayer.setPlayWhenReady(false);
+                unregisterReceiver(becomingNoisyReceiver);
+            }
 
             audioManager.abandonAudioFocus(audioFocusChangeListener);
 
