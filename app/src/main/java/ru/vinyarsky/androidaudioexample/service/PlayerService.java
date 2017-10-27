@@ -1,6 +1,8 @@
 package ru.vinyarsky.androidaudioexample.service;
 
 import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
@@ -8,10 +10,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.BitmapFactory;
+import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Bundle;
+import android.os.Build;
 import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -24,7 +29,8 @@ import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaButtonReceiver;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
-import android.support.v7.app.NotificationCompat;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.media.app.NotificationCompat.MediaStyle;
 
 import com.google.android.exoplayer2.DefaultLoadControl;
 import com.google.android.exoplayer2.DefaultRenderersFactory;
@@ -62,6 +68,7 @@ import static android.support.v4.media.MediaBrowserCompat.MediaItem.FLAG_PLAYABL
 final public class PlayerService extends MediaBrowserServiceCompat {
 
     private final int NOTIFICATION_ID = 404;
+    private final String NOTIFICATION_DEFAULT_CHANNEL_ID = "default_channel";
 
     private final MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
 
@@ -77,6 +84,7 @@ final public class PlayerService extends MediaBrowserServiceCompat {
     private MediaSessionCompat mediaSession;
 
     private AudioManager audioManager;
+    private AudioFocusRequest audioFocusRequest;
 
     private SimpleExoPlayer exoPlayer;
     private ExtractorsFactory extractorsFactory;
@@ -87,6 +95,23 @@ final public class PlayerService extends MediaBrowserServiceCompat {
     @Override
     public void onCreate() {
         super.onCreate();
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel notificationChannel = new NotificationChannel(NOTIFICATION_DEFAULT_CHANNEL_ID, getString(R.string.notification_channel_name), NotificationManagerCompat.IMPORTANCE_DEFAULT);
+            NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            notificationManager.createNotificationChannel(notificationChannel);
+
+            AudioAttributes audioAttributes = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build();
+            audioFocusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                    .setOnAudioFocusChangeListener(audioFocusChangeListener)
+                    .setAcceptsDelayedFocusGain(false)
+                    .setWillPauseWhenDucked(true)
+                    .setAudioAttributes(audioAttributes)
+                    .build();
+        }
 
         audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 
@@ -179,7 +204,13 @@ final public class PlayerService extends MediaBrowserServiceCompat {
             prepareToPlay(track.getUri());
 
             if (!exoPlayer.getPlayWhenReady()) {
-                int audioFocusResult = audioManager.requestAudioFocus(audioFocusChangeListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+                int audioFocusResult;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    audioFocusResult = audioManager.requestAudioFocus(audioFocusRequest);
+                }
+                else {
+                    audioFocusResult = audioManager.requestAudioFocus(audioFocusChangeListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+                }
                 if (audioFocusResult != AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
                     return;
 
@@ -216,7 +247,12 @@ final public class PlayerService extends MediaBrowserServiceCompat {
                 unregisterReceiver(becomingNoisyReceiver);
             }
 
-            audioManager.abandonAudioFocus(audioFocusChangeListener);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                audioManager.abandonAudioFocusRequest(audioFocusRequest);
+            }
+            else {
+                audioManager.abandonAudioFocus(audioFocusChangeListener);
+            }
 
             mediaSession.setActive(false);
 
@@ -369,7 +405,7 @@ final public class PlayerService extends MediaBrowserServiceCompat {
             builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_play, getString(R.string.play), MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_PLAY_PAUSE)));
 
         builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_next, getString(R.string.next), MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_NEXT)));
-        builder.setStyle(new NotificationCompat.MediaStyle()
+        builder.setStyle(new MediaStyle()
                 .setShowActionsInCompactView(1)
                 .setShowCancelButton(true)
                 .setCancelButtonIntent(MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_STOP))
@@ -379,6 +415,7 @@ final public class PlayerService extends MediaBrowserServiceCompat {
         builder.setShowWhen(false);
         builder.setPriority(NotificationCompat.PRIORITY_HIGH);
         builder.setOnlyAlertOnce(true);
+        builder.setChannelId(NOTIFICATION_DEFAULT_CHANNEL_ID);
 
         return builder.build();
     }
