@@ -85,6 +85,7 @@ final public class PlayerService extends MediaBrowserServiceCompat {
 
     private AudioManager audioManager;
     private AudioFocusRequest audioFocusRequest;
+    private boolean audioFocusRequested = false;
 
     private SimpleExoPlayer exoPlayer;
     private ExtractorsFactory extractorsFactory;
@@ -204,15 +205,18 @@ final public class PlayerService extends MediaBrowserServiceCompat {
             prepareToPlay(track.getUri());
 
             if (!exoPlayer.getPlayWhenReady()) {
-                int audioFocusResult;
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    audioFocusResult = audioManager.requestAudioFocus(audioFocusRequest);
+                if (!audioFocusRequested) {
+                    audioFocusRequested = true;
+
+                    int audioFocusResult;
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        audioFocusResult = audioManager.requestAudioFocus(audioFocusRequest);
+                    } else {
+                        audioFocusResult = audioManager.requestAudioFocus(audioFocusChangeListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+                    }
+                    if (audioFocusResult != AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
+                        return;
                 }
-                else {
-                    audioFocusResult = audioManager.requestAudioFocus(audioFocusChangeListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
-                }
-                if (audioFocusResult != AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
-                    return;
 
                 mediaSession.setActive(true); // Сразу после получения фокуса
 
@@ -247,11 +251,14 @@ final public class PlayerService extends MediaBrowserServiceCompat {
                 unregisterReceiver(becomingNoisyReceiver);
             }
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                audioManager.abandonAudioFocusRequest(audioFocusRequest);
-            }
-            else {
-                audioManager.abandonAudioFocus(audioFocusChangeListener);
+            if (audioFocusRequested) {
+                audioFocusRequested = false;
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    audioManager.abandonAudioFocusRequest(audioFocusRequest);
+                } else {
+                    audioManager.abandonAudioFocus(audioFocusChangeListener);
+                }
             }
 
             mediaSession.setActive(false);
