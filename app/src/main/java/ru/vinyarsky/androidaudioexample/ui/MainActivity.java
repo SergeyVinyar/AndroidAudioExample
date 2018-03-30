@@ -17,8 +17,10 @@ import ru.vinyarsky.androidaudioexample.service.PlayerService;
 
 public class MainActivity extends AppCompatActivity {
 
-    PlayerService.PlayerServiceBinder playerServiceBinder;
-    MediaControllerCompat mediaController;
+    private PlayerService.PlayerServiceBinder playerServiceBinder;
+    private MediaControllerCompat mediaController;
+    private MediaControllerCompat.Callback callback;
+    private ServiceConnection serviceConnection;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,23 +33,26 @@ public class MainActivity extends AppCompatActivity {
         final Button skipToNextButton = (Button) findViewById(R.id.skip_to_next);
         final Button skipToPreviousButton = (Button) findViewById(R.id.skip_to_previous);
 
-        bindService(new Intent(this, PlayerService.class), new ServiceConnection() {
+        callback = new MediaControllerCompat.Callback() {
+            @Override
+            public void onPlaybackStateChanged(PlaybackStateCompat state) {
+                if (state == null)
+                    return;
+                boolean playing = state.getState() == PlaybackStateCompat.STATE_PLAYING;
+                playButton.setEnabled(!playing);
+                pauseButton.setEnabled(playing);
+                stopButton.setEnabled(playing);
+            }
+        };
+
+        serviceConnection = new ServiceConnection() {
             @Override
             public void onServiceConnected(ComponentName name, IBinder service) {
                 playerServiceBinder = (PlayerService.PlayerServiceBinder) service;
                 try {
                     mediaController = new MediaControllerCompat(MainActivity.this, playerServiceBinder.getMediaSessionToken());
-                    mediaController.registerCallback(new MediaControllerCompat.Callback() {
-                        @Override
-                        public void onPlaybackStateChanged(PlaybackStateCompat state) {
-                            if (state == null)
-                                return;
-                            boolean playing = state.getState() == PlaybackStateCompat.STATE_PLAYING;
-                            playButton.setEnabled(!playing);
-                            pauseButton.setEnabled(playing);
-                            stopButton.setEnabled(playing);
-                        }
-                    });
+                    mediaController.registerCallback(callback);
+                    callback.onPlaybackStateChanged(mediaController.getPlaybackState());
                 }
                 catch (RemoteException e) {
                     mediaController = null;
@@ -57,9 +62,14 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onServiceDisconnected(ComponentName name) {
                 playerServiceBinder = null;
-                mediaController = null;
+                if (mediaController != null) {
+                    mediaController.unregisterCallback(callback);
+                    mediaController = null;
+                }
             }
-        }, BIND_AUTO_CREATE);
+        };
+
+        bindService(new Intent(this, PlayerService.class), serviceConnection, BIND_AUTO_CREATE);
 
         playButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -100,5 +110,16 @@ public class MainActivity extends AppCompatActivity {
                     mediaController.getTransportControls().skipToPrevious();
             }
         });
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        playerServiceBinder = null;
+        if (mediaController != null) {
+            mediaController.unregisterCallback(callback);
+            mediaController = null;
+        }
+        unbindService(serviceConnection);
     }
 }
