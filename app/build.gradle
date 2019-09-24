@@ -1,15 +1,15 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 26
-    buildToolsVersion "26.0.0"
+    compileSdkVersion 28
+    buildToolsVersion "28.0.3"
     defaultConfig {
         applicationId "ru.vinyarsky.androidaudioexample"
         minSdkVersion 19
-        targetSdkVersion 26
+        targetSdkVersion 28
         versionCode 1
         versionName "1.0"
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
         release {
@@ -19,9 +19,35 @@ android {
     }
 }
 
+ext {
+//    picassoVersion = '2.5.2'
+//    circleImageViewVersion = '2.2.0'
+//    shapeImageViewVersion = '0.9.3'
+//    circleindicatorVersion = '1.2.2@aar'
+//    roomVersion = '2.1.0'//'1.1.1'
+//    lifecycleVersion = '2.0.0'//'1.1.1'
+//    retrofitVersion = '2.4.0'
+//    okhttpVersion = '3.10.0'
+//    daggerVersion = '2.21' //2.15
+//    navigationVersion = '1.0.0'
+//    pagingVersion = '2.1.0'
+//    autoValueVersion = '1.6.3'
+    androidxVersion = '1.0.0'
+}
+
 dependencies {
-    compile 'com.android.support:appcompat-v7:26.1.0'
-    compile 'com.squareup.okhttp3:okhttp:3.6.0'
-    compile 'com.google.android.exoplayer:exoplayer:r2.4.0'
-    compile 'com.google.android.exoplayer:extension-okhttp:r2.4.0'
+    implementation "androidx.legacy:legacy-support-v4:$androidxVersion"
+
+    implementation "androidx.legacy:legacy-support-v4:$androidxVersion"
+    implementation "androidx.recyclerview:recyclerview:$androidxVersion"
+    implementation "androidx.cardview:cardview:$androidxVersion"
+    implementation "androidx.legacy:legacy-support-v4:$androidxVersion"
+    implementation 'androidx.appcompat:appcompat:1.0.2'
+    implementation 'androidx.annotation:annotation:1.1.0'//1.0.2
+    implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
+
+    implementation 'com.squareup.okhttp3:okhttp:3.6.0'
+
+    implementation 'com.google.android.exoplayer:exoplayer-core:r2.4.0'
+    implementation 'com.google.android.exoplayer:extension-okhttp:r2.4.0'
 }

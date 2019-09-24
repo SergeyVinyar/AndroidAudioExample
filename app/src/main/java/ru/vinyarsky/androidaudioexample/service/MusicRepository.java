@@ -4,14 +4,15 @@ import android.net.Uri;
 
 import ru.vinyarsky.androidaudioexample.R;
 
+//https://simpleguics2pygame.readthedocs.io/en/latest/_static/links/snd_links.html
 final class MusicRepository {
 
     private final Track[] data = {
-            new Track("Triangle", "Jason Shaw", R.drawable.image266680, Uri.parse("https://freepd.com/Ballad/Triangle.mp3"), (3 * 60 + 41) * 1000),
-            new Track("Rubix Cube", "Jason Shaw", R.drawable.image396168, Uri.parse("https://freepd.com/Ballad/Rubix Cube.mp3"), (3 * 60 + 44) * 1000),
-            new Track("MC Ballad S Early Eighties", "Frank Nora", R.drawable.image533998, Uri.parse("https://freepd.com/Ballad/MC Ballad S Early Eighties.mp3"), (2 * 60 + 50) * 1000),
-            new Track("Folk Song", "Brian Boyko", R.drawable.image544064, Uri.parse("https://freepd.com/Acoustic/Folk Song.mp3"), (3 * 60 + 5) * 1000),
-            new Track("Morning Snowflake", "Kevin MacLeod", R.drawable.image208815, Uri.parse("https://freepd.com/Acoustic/Morning Snowflake.mp3"), (2 * 60 + 0) * 1000),
+            new Track("Triangle", "Jason Shaw", R.drawable.image266680,                   Uri.parse("https://codeskulptor-demos.commondatastorage.googleapis.com/pang/paza-moduless.mp3"), (3 * 60 + 41) * 1000),
+            new Track("Rubix Cube", "Jason Shaw", R.drawable.image396168,                 Uri.parse("https://codeskulptor-demos.commondatastorage.googleapis.com/descent/background%20music.mp3"), (3 * 60 + 44) * 1000),
+            new Track("MC Ballad S Early Eighties", "Frank Nora", R.drawable.image533998, Uri.parse("https://commondatastorage.googleapis.com/codeskulptor-assets/sounddogs/soundtrack.mp3"), (2 * 60 + 50) * 1000),
+            new Track("Folk Song", "Brian Boyko", R.drawable.image544064,                 Uri.parse("https://commondatastorage.googleapis.com/codeskulptor-demos/riceracer_assets/music/lose.ogg"), (3 * 60 + 5) * 1000),
+            new Track("Morning Snowflake", "Kevin MacLeod", R.drawable.image208815,       Uri.parse("https://commondatastorage.googleapis.com/codeskulptor-demos/riceracer_assets/music/race1.ogg"), (2 * 60 + 0) * 1000),
     };
 
     private final int maxIndex = data.length - 1;
