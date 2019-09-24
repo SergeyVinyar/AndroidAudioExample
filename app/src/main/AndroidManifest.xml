@@ -4,6 +4,7 @@
     package="ru.vinyarsky.androidaudioexample">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
 
     <application
         android:allowBackup="true"
@@ -11,7 +12,9 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AppCompat.Light.DarkActionBar" >
+        android:theme="@style/Theme.AppCompat.Light.DarkActionBar"
+        android:fullBackupContent="false"
+        tools:ignore="GoogleAppIndexingWarning">
 
         <service
             android:name=".service.PlayerService"

@@ -14,7 +14,8 @@ import android.widget.Button;
 
 import ru.vinyarsky.androidaudioexample.R;
 import ru.vinyarsky.androidaudioexample.service.PlayerService;
-
+//https://habr.com/ru/post/339416/
+//https://stackoverflow.com/questions/52473974/binding-playerview-with-simpleexoplayer-from-a-service
 public class MainActivity extends AppCompatActivity {
 
     private PlayerService.PlayerServiceBinder playerServiceBinder;
