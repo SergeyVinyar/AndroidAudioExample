@@ -8,13 +8,14 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
-import android.support.v7.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
 
 import ru.vinyarsky.androidaudioexample.R;
 import ru.vinyarsky.androidaudioexample.service.PlayerService;
-
+//https://habr.com/ru/post/339416/
+//https://stackoverflow.com/questions/52473974/binding-playerview-with-simpleexoplayer-from-a-service
 public class MainActivity extends AppCompatActivity {
 
     private PlayerService.PlayerServiceBinder playerServiceBinder;
